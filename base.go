@@ -1,4 +1,4 @@
-package resp
+package middleware
 
 import (
 	"encoding/json"

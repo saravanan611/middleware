@@ -1,4 +1,4 @@
-package apigate
+package middleware
 
 import (
 	"fmt"
