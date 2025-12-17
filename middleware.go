@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"time"
@@ -40,6 +42,7 @@ func (rw *ResponseCaptureWriter) Body() []byte {
 }
 
 var (
+	osSignal        = []os.Signal{}
 	allowOrigin     = "*"
 	allowCredential = false
 	allowHeader     = []string{"Accept", "Content-Type", "Content-Length", "Accept-Encoding", "X-CSRF-Token", "Authorization", "credentials"}
@@ -50,6 +53,13 @@ var (
 func SetHeader(pHeader ...string) {
 	if len(pHeader) > 0 {
 		allowHeader = append(allowHeader, pHeader...)
+	}
+}
+
+/* set signal for greasefull shadown*/
+func SetSignal(pSignal ...os.Signal) {
+	if len(pSignal) > 0 {
+		osSignal = append(osSignal, pSignal...)
 	}
 }
 
@@ -153,8 +163,21 @@ func SetServer(pRuterFunc func(pRouterInfo *mux.Router), pReadTimeout, pWriteTim
 	}
 
 	fmt.Printf("server start on :%d ....", pPortAdrs)
-	if lErr := lSrv.ListenAndServe(); lErr != nil {
-		return log.Error(lErr)
+	if len(osSignal) > 0 {
+		go func() {
+			if lErr := lSrv.ListenAndServe(); lErr != nil && lErr != http.ErrServerClosed {
+				fmt.Println(time.Now(), lErr)
+			}
+		}()
+
+		// Wait for SIGTERM / CTRL+C
+		sig := make(chan os.Signal, 1)
+		signal.Notify(sig, osSignal...)
+		<-sig
+	} else {
+		if lErr := lSrv.ListenAndServe(); lErr != nil {
+			fmt.Println(time.Now(), lErr)
+		}
 	}
 
 	return nil
